@@ -47,7 +47,7 @@ self.addEventListener("fetch", (event) => {
 				// 現在のバージョンの任意のファイルの URL からバージョンとファイル名を変えて URL を作る
 				// content-type は現在のバージョンに同名ファイルがないと取得できないので拡張子から作る
 				const url = new URL(Object.values(gist.files)[0].raw_url)
-				url.pathname = url.pathname.split("/").with(-2, version).with(-1, filename)
+				url.pathname = url.pathname.split("/").with(-2, version).with(-1, filename).join("/")
 				const res = await getFile(url.href, { content_type: autoType(filename), cache_ms: long_cache })
 				return res.status === 200 ? res : mkHTMLRes(res.status)
 			} else {
