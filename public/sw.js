@@ -34,7 +34,7 @@ self.addEventListener("fetch", (event) => {
 			const gist_res = await getFile(`https://api.github.com/gists/${gist_id}`, { cache_ms: short_cache })
 			if (gist_res.status !== 200) return mkHTMLRes(gist_res.status)
 
-			const gist = await res.json()
+			const gist = await gist_res.json()
 
 			// 他人の Gist はデフォルトでは許可しない
 			// unrestricted を付けたら無制限
