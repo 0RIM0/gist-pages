@@ -14,4 +14,4 @@ def replace_file(filepath, replace_dict):
 
 	path.write_text(content, encoding="utf-8")
 
-replace_file("public/404.html", { "{{deploy_root}}": sys.arv[1] })
+replace_file("public/404.html", { "{{deploy_root}}": sys.argv[1] })
