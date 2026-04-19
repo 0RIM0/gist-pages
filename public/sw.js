@@ -4,6 +4,8 @@ const root = new URL("./", self.location.href)
 const gist_id_regexp = /^[0-9a-f]{32}$/
 const version_regexp = /^[0-9a-f]{40}|[0-9a-f]{64}$/
 
+const safe_owners = ["0RIM0"]
+
 const short_cache = 1000 * 60 * 60 * 24
 const long_cache = 1000 * 60 * 60 * 24 * 365
 
@@ -29,14 +31,14 @@ self.addEventListener("fetch", (event) => {
 
 	event.respondWith(
 		Promise.try(async () => {
-			const gist_res = getFile(`https://api.github.com/gists/${gist_id}`, { cache_ms: short_cache })
+			const gist_res = await getFile(`https://api.github.com/gists/${gist_id}`, { cache_ms: short_cache })
 			if (gist_res.status !== 200) return mkHTMLRes(gist_res.status)
 
 			const gist = await res.json()
 
 			// 他人の Gist はデフォルトでは許可しない
 			// unrestricted を付けたら無制限
-			if (!unrestricted && gist.owner.login !== "0RIM0") {
+			if (!unrestricted && !safe_owners.includes(gist.owner.login)) {
 				return mkHTMLRes(403)
 			}
 
@@ -46,7 +48,7 @@ self.addEventListener("fetch", (event) => {
 				// content-type は現在のバージョンに同名ファイルがないと取得できないので拡張子から作る
 				const url = new URL(Object.values(gist.files)[0].raw_url)
 				url.pathname = url.pathname.split("/").with(-2, version).with(-1, filename)
-				const res = getFile(url.href, { content_type: autoType(filename), cache_ms: long_cache })
+				const res = await getFile(url.href, { content_type: autoType(filename), cache_ms: long_cache })
 				return res.status === 200 ? res : mkHTMLRes(res.status)
 			} else {
 				const file = gist.files[filename]
@@ -55,7 +57,7 @@ self.addEventListener("fetch", (event) => {
 				} else if (!file.truncated) {
 					return new Response(file.content, { headers: { "Content-Type": file.type } })
 				} else {
-					const res = getFile(file.raw_url, { content_type: file.type, cache_ms: long_cache })
+					const res = await getFile(file.raw_url, { content_type: file.type, cache_ms: long_cache })
 					return res.status === 200 ? res : mkHTMLRes(res.status)
 				}
 			}
