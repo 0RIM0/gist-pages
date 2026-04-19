@@ -3,30 +3,217 @@
 <title>Gist Pages</title>
 
 <style>
+	* {
+		box-sizing: border-box;
+	}
+
+	body {
+		margin: 0;
+		font-size: 16px;
+		background-color: #f8fafc;
+		color: #334155;
+	}
+
+	header {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		padding: 10px 20px;
+		background: #ce3434;
+		color: #fef2f2;
+		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+		display: flex;
+		align-items: center;
+
+		button {
+			width: 24px;
+			height: 24px;
+			font-weight: bold;
+			color: #fca5a5;
+			border: 1px solid #991b1b;
+			border-radius: 4px;
+			background: #7a1818;
+			font-size: 12px;
+			padding: 0;
+			margin-right: 12px;
+			cursor: pointer;
+			transition: all 0.2s;
+
+			&:hover {
+				color: #ffffff;
+				border-color: #f87171;
+				background: #991b1b;
+			}
+		}
+	}
+
+	main {
+		display: flex;
+		flex-flow: column;
+		align-items: center;
+		max-width: 800px;
+		width: 80%;
+		margin: auto;
+	}
+
+	.note {
+		margin-top: 20vh;
+		width: 100%;
+		color: #92400e;
+		background: #fffbeb;
+		border: 1px solid #fde68a;
+		border-radius: 16px;
+		padding: 30px;
+		line-height: 1.8;
+	}
+
+	input {
+		width: 100%;
+		padding: 0.7em 1em;
+		font-size: 1.2em;
+		border-radius: 12px;
+		border: 1px solid #cbd5e1;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		margin-top: 20vh;
+		box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+		transition: all 0.2s;
+	}
+
+	input:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+	}
+
+	main button {
+		width: 180px;
+		height: 56px;
+		font-size: 1.1em;
+		font-weight: 600;
+		font-family: inherit;
+		border-radius: 12px;
+		margin-top: 40px;
+		border: none;
+		background-color: dodgerblue;
+		color: white;
+		cursor: pointer;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		transition: all 0.2s;
+
+		&:hover {
+			background-color: royalblue;
+			transform: translateY(-1px);
+			box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+		}
+
+		&:active {
+			background-color: #1e40af;
+			transform: translateY(0);
+		}
+	}
+
+	code {
+		font-family: Monaco, Consolas, monospace;
+		border: 1px solid #e2e8f0;
+		border-color: #fde68a;
+		border-radius: 6px;
+		background: #fef3c7;
+		padding: 0.2em 0.4em;
+		font-size: 0.9em;
+	}
+
+	pre {
+		margin: 20px 0 0;
+	}
+
+	pre code {
+		display: block;
+		width: 100%;
+		padding: 16px 24px;
+		overflow: auto;
+	}
+
+	[hidden] {
+		display: none !important;
+	}
 </style>
 
 <script type="module">
 	const deploy_root = "{{deploy_root}}" // ← github ci で置換
 	const sw_path = `/${deploy_root}/sw.js`
 
-	const statusEl = document.getElementById("status")
-
-	async function init() {
+	const init = async () => {
 		try {
-			const reg = await navigator.serviceWorker.register(sw_path)
-			console.log("Registered", reg)
+			await navigator.serviceWorker.register(sw_path)
+			await navigator.serviceWorker.ready
 
-			if (navigator.serviceWorker.controller) {
-				statusEl.textContent = "Service Worker が有効です"
+			if (new URL(location.href).pathname.split("/").length > 3) {
+				location.reload()
+			} else {
+				showMain()
 			}
 		} catch (err) {
-			statusEl.textContent = "登録エラー: " + err.message
+			showMain()
+			showHeader("Service Worker の登録に失敗しました：" + err.message)
 		}
 	}
+
+	const showMain = () => {
+		document.querySelector("main").hidden = false
+	}
+
+	const showHeader = (msg) => {
+		document.querySelector("header span").textContent = msg
+		document.querySelector("header").hidden = false
+	}
+
+	document.querySelector("header button").addEventListener("click", () => {
+		document.querySelector("header").hidden = true
+	})
+
+	document.querySelector("main button").addEventListener("click", () => {
+		const value = document.querySelector("main input").value.trim()
+		try {
+			const url = new URL(value, location.origin)
+			const open_url = new URL(location.origin)
+			const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([0-9a-f]{40}|[0-9a-f]{64})(?=\/).*(?<=\/)([^\/]+)$/)
+
+			if (matched) {
+				const [, gist_id, version, filename] = matched
+				open_url.pathname = `/${deploy_root}/${gist_id}/${version}/${filename}`
+			} else {
+				const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([^\/]+)$/)
+
+				if (matched) {
+					const [, gist_id, filename] = matched
+					open_url.pathname = `/${deploy_root}/${gist_id}/${filename}`
+				}
+			}
+
+			open_url.search = url.search
+			open_url.hash = url.hash
+			window.open(open_url.href)
+		} catch (err) {
+			showHeader("URL が不正です")
+		}
+	})
 
 	init()
 </script>
 
-<div id="status">
-	Loading
-</div>
+<header hidden>
+	<button>✕</button>
+	<span></span>
+</header>
+
+<main hidden>
+	<input>
+	<button>開く</button>
+	<div class="note">
+		localStorage などが共有されるので、安全のために他の人の Gist は拒否しています<br />
+		制限をなくすには ServiceWorker のクエリパラメーターで <code>unrestricted=true</code> を指定します<br />
+		簡単な方法：以下のコードをコンソールで実行<br />
+		<pre><code>navigator.serviceWorker.register(`/gist-pages/sw.js?unrestricted=true`)</code></pre>
+	</div>
+</main>
