@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Gist Pages</title>
+
+<style>
+</style>
+
+<script type="module">
+	const statusEl = document.getElementById("status")
+
+	async function init() {
+		try {
+			const reg = await navigator.serviceWorker.register("sw.js")
+			console.log("Registered", reg)
+
+			if (navigator.serviceWorker.controller) {
+				statusEl.textContent = "Service Worker が有効です"
+			}
+		} catch (err) {
+			statusEl.textContent = "登録エラー: " + err.message
+		}
+	}
+
+	init()
+</script>
+
+<div id="status">
+	Loading
+</div>
