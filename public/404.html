@@ -163,6 +163,14 @@
 		document.querySelector("main").hidden = false
 	}
 
+	const urlSafe = (...args) => {
+		try {
+			return { url: new URL(...args) }
+		} catch (error) {
+			return { error }
+		}
+	}
+
 	const showHeader = (msg) => {
 		document.querySelector("header span").textContent = msg
 		document.querySelector("header").hidden = false
@@ -174,29 +182,34 @@
 
 	document.querySelector("main button").addEventListener("click", () => {
 		const value = document.querySelector("main input").value.trim()
-		try {
-			const url = new URL(value, location.origin)
-			const open_url = new URL(location.origin)
-			const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([0-9a-f]{40}|[0-9a-f]{64})(?=\/).*(?<=\/)([^\/]+)$/)
+		const { url, error } = urlSafe(value, location.origin)
+		const open_url = new URL(location.origin)
 
-			if (matched) {
-				const [, gist_id, version, filename] = matched
-				open_url.pathname = `/${deploy_root}/${gist_id}/${version}/${filename}`
-			} else {
-				const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([^\/]+)$/)
-
-				if (matched) {
-					const [, gist_id, filename] = matched
-					open_url.pathname = `/${deploy_root}/${gist_id}/${filename}`
-				}
-			}
-
-			open_url.search = url.search
-			open_url.hash = url.hash
-			window.open(open_url.href)
-		} catch (err) {
+		if (error) {
 			showHeader("URL が不正です")
+			return
 		}
+
+		const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([0-9a-f]{40}|[0-9a-f]{64})(?=\/).*(?<=\/)([^\/]+)$/)
+		if (matched) {
+			const [, gist_id, version, filename] = matched
+			open_url.pathname = `/${deploy_root}/${gist_id}/${version}/${filename}`
+		} else {
+			const matched = url.pathname.match(/(?<=\/)([0-9a-f]{32})(?=\/).*(?<=\/)([^\/]+)$/)
+			if (matched) {
+				const [, gist_id, filename] = matched
+				open_url.pathname = `/${deploy_root}/${gist_id}/${filename}`
+			}
+		}
+
+		if (open_url.pathname === "/") {
+			showHeader("Gist ID、バージョン、ファイル名が検出できませんでした")
+			return
+		}
+
+		open_url.search = url.search
+		open_url.hash = url.hash
+		window.open(open_url.href)
 	})
 
 	init()
