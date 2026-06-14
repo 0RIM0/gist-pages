@@ -59,12 +59,13 @@ self.addEventListener("fetch", (event) => {
 				return res.status === 200 ? res : mkHTMLRes(res.status)
 			} else {
 				const file = gist.files[filename]
+				if (!file) return mkHTMLRes(404)
+
 				const meta = await getMeta(gist.files[metafile])
 				const file_headers = meta.headers?.[filename]
 				const headers = { "Content-Type": file.type, ...file_headers }
-				if (!file) {
-					return mkHTMLRes(404)
-				} else if (!file.truncated) {
+
+				if (!file.truncated) {
 					return new Response(file.content, { headers })
 				} else {
 					const res = await getFileResponse(file.raw_url, { headers, cache_ms: long_cache })
