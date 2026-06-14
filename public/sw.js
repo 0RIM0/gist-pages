@@ -1,4 +1,5 @@
 const unrestricted = new URL(self.location.href).searchParams.get("unrestricted") === "true"
+const metafile = new URL(self.location.href).searchParams.get("metafile") || "_meta.json"
 const root = new URL("./", self.location.href)
 
 const gist_id_regexp = /^[0-9a-f]{32}$/
@@ -31,7 +32,7 @@ self.addEventListener("fetch", (event) => {
 
 	event.respondWith(
 		Promise.try(async () => {
-			const gist_res = await getFile(`https://api.github.com/gists/${gist_id}`, { cache_ms: short_cache })
+			const gist_res = await getFileResponse(`https://api.github.com/gists/${gist_id}`, { cache_ms: short_cache })
 			if (gist_res.status !== 200) return mkHTMLRes(gist_res.status)
 
 			const gist = await gist_res.json()
@@ -45,19 +46,28 @@ self.addEventListener("fetch", (event) => {
 			if (version) {
 				// 過去版にのみあるファイルの可能性もあるので、現在の同名ファイルの URL からバージョンだけ変えるのではなく
 				// 現在のバージョンの任意のファイルの URL からバージョンとファイル名を変えて URL を作る
+				const mkURL = (version, filename) => {
+					const url = new URL(Object.values(gist.files)[0].raw_url)
+					url.pathname = url.pathname.split("/").with(-2, version).with(-1, filename).join("/")
+					return url
+				}
+				const meta = await getMeta(mkURL(version, metafile))
+				const file_headers = meta.headers?.[filename]
 				// content-type は現在のバージョンに同名ファイルがないと取得できないので拡張子から作る
-				const url = new URL(Object.values(gist.files)[0].raw_url)
-				url.pathname = url.pathname.split("/").with(-2, version).with(-1, filename).join("/")
-				const res = await getFile(url.href, { content_type: autoType(filename), cache_ms: long_cache })
+				const headers = { "Content-Type": autoType(filename), ...file_headers }
+				const res = await getFileResponse(mkURL(version, filename).href, { headers, cache_ms: long_cache })
 				return res.status === 200 ? res : mkHTMLRes(res.status)
 			} else {
 				const file = gist.files[filename]
+				const meta = await getMeta(gist.files[metafile])
+				const file_headers = meta.headers?.[filename]
+				const headers = { "Content-Type": file.type, ...file_headers }
 				if (!file) {
 					return mkHTMLRes(404)
 				} else if (!file.truncated) {
-					return new Response(file.content, { headers: { "Content-Type": file.type } })
+					return new Response(file.content, { headers })
 				} else {
-					const res = await getFile(file.raw_url, { content_type: file.type, cache_ms: long_cache })
+					const res = await getFileResponse(file.raw_url, { headers, cache_ms: long_cache })
 					return res.status === 200 ? res : mkHTMLRes(res.status)
 				}
 			}
@@ -125,8 +135,38 @@ const autoType = (filename) => {
 	}[ext]
 }
 
-const getFile = async (url, { content_type, cache_ms }) => {
-	const cache = await caches.open("cache")
+const getMeta = async (file) => {
+	const processJSON = async (getJson) => {
+		try {
+			const data = await getJson()
+			return {
+				headers: data.pages_header,
+			}
+		} catch (err) {
+			console.error("meta invalid json", err)
+			return {}
+		}
+	}
+
+	const processURL = async (url) => {
+		const res = await getFileResponse(url, { cache_ms: long_cache })
+		if (res.status !== 200) return {}
+		return await processJSON(() => res.json())
+	}
+
+	if (!file) {
+		return {}
+	} else if (file instanceof URL) {
+		return await processURL(file.href)
+	} else if (!file.truncated) {
+		return await processJSON(() => JSON.parse(file.content))
+	} else {
+		return await processURL(file.raw_url)
+	}
+}
+
+const getFileResponse = async (url, { headers: override_headers, cache_ms }) => {
+	const cache = await caches.open("gist-pages")
 	let res = await cache.match(url)
 
 	if (res) {
@@ -144,8 +184,8 @@ const getFile = async (url, { content_type, cache_ms }) => {
 		// header をカスタムして Response を作り直す
 		const headers = new Headers(actual_res.headers)
 		headers.set("x-cached-at", String(Date.now()))
-		if (content_type) {
-			headers.set("content-type", content_type)
+		for (const [key, value] of Object.entries(override_headers || {})) {
+			headers.set(key, value)
 		}
 
 		res = new Response(actual_res.body, {

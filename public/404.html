@@ -58,7 +58,7 @@
 	}
 
 	.note {
-		margin-top: 20vh;
+		margin-top: 32px;
 		width: 100%;
 		color: #92400e;
 		background: #fffbeb;
@@ -88,27 +88,50 @@
 
 	main button {
 		width: 180px;
-		height: 56px;
 		font-size: 1.1em;
 		font-weight: 600;
 		font-family: inherit;
 		border-radius: 12px;
+		padding: 16px;
 		margin-top: 40px;
 		border: none;
-		background-color: dodgerblue;
 		color: white;
 		cursor: pointer;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 		transition: all 0.2s;
 
+		&#open {
+			background-color: dodgerblue;
+
+			&:hover {
+				background-color: royalblue;
+			}
+
+			&:active {
+				background-color: #1e40af;
+			}
+		}
+
+		&#clear {
+			width: 240px;
+			background-color: crimson;
+			margin-top: 20vh;
+
+			&:hover {
+				background-color: #c42354;
+			}
+
+			&:active {
+				background-color: firebrick;
+			}
+		}
+
 		&:hover {
-			background-color: royalblue;
 			transform: translateY(-1px);
 			box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 		}
 
 		&:active {
-			background-color: #1e40af;
 			transform: translateY(0);
 		}
 	}
@@ -180,7 +203,7 @@
 		document.querySelector("header").hidden = true
 	})
 
-	document.querySelector("main button").addEventListener("click", () => {
+	document.querySelector("#open").addEventListener("click", () => {
 		const value = document.querySelector("main input").value.trim()
 		const { url, error } = urlSafe(value, location.origin)
 		const open_url = new URL(location.origin)
@@ -212,6 +235,10 @@
 		window.open(open_url.href)
 	})
 
+	document.querySelector("#clear").addEventListener("click", async () => {
+		await caches.delete("gist-pages")
+	})
+
 	init()
 </script>
 
@@ -222,7 +249,8 @@
 
 <main hidden>
 	<input>
-	<button>開く</button>
+	<button id="open">開く</button>
+	<button id="clear">キャッシュクリア</button>
 	<div class="note">
 		localStorage などが共有されるので、安全のために他の人の Gist は拒否しています<br />
 		制限をなくすには ServiceWorker のクエリパラメーターで <code>unrestricted=true</code> を指定します<br />

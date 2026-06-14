@@ -18,6 +18,27 @@ Gist のファイルを Pages にする
 
 初回アクセスの場合は Service Worker をインストールして準備できたら自動でリロードするので単純に上のような URL を開くだけで良い  
 
+## カスタムヘッダー
+
+Gist 内の `_meta.json` ファイルを使ってヘッダーをカスタマイズできる  
+`pages_header` に、キーがファイル名、バリューが headers の内容のオブジェクトのオブジェクトを入れる  
+
+（例）  
+
+```json
+{
+	"pages_header": {
+		"filename.html": {
+			"Content-Type": "text/plain"
+		}
+	}
+}
+```
+
+cross-origin-isolated が必要なページでは `Cross-Origin-Opener-Policy` などのヘッダーを追加して cross-origin-isolated なページを作れる  
+
+- https://0rim0.github.io/gist-pages/91406bca2563746fbb46540338d7ad12/cross-origin-isolated.html
+
 ## コントロールページ
 
 `gist-pages` の後に階層がなければ、コントロールページを表示  
